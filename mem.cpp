@@ -41,8 +41,8 @@ uintptr_t MemoryProcessor::FindDynamicAddr(mach_vm_address_t ptr, const std::vec
 
 mach_vm_address_t MemoryProcessor::GetMainModuleBaseAddress() const {
     
-    task_t task;
-    if (task_for_pid(mach_task_self(), pid, &task) != KERN_SUCCESS) {
+    task_t tsk;
+    if (task_for_pid(mach_task_self(), pid, &tsk) != KERN_SUCCESS) {
 
         return 0; // Error getting task for PID
     }
@@ -51,7 +51,7 @@ mach_vm_address_t MemoryProcessor::GetMainModuleBaseAddress() const {
     mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
     struct task_dyld_info dyld_info;
 
-    if (task_info(task, TASK_DYLD_INFO, (task_info_t)&dyld_info, &count) != KERN_SUCCESS) {
+    if (task_info(tsk, TASK_DYLD_INFO, (task_info_t)&dyld_info, &count) != KERN_SUCCESS) {
 
         return 0; // Error getting task info
     }
