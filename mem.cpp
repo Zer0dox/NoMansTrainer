@@ -1,10 +1,7 @@
 #include "memproc.h"
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
-#include <mach-o/dyld_images.h>
 #include <mach-o/loader.h>
-#include <sys/types.h>
-#include <iostream>
 #include <libproc.h>
 #include <vector>
 #include <string>
@@ -39,8 +36,9 @@ uintptr_t MemoryProcessor::FindDynamicAddr(mach_vm_address_t ptr, const std::vec
 
 }
 
-mach_vm_address_t MemoryProcessor::GetMainModuleBaseAddress() const {
-    
+mach_vm_address_t MemoryProcessor::GetMainModuleBaseAddress() {
+
+    /*
     task_t tsk;
     if (task_for_pid(mach_task_self(), pid, &tsk) != KERN_SUCCESS) {
 
@@ -49,7 +47,7 @@ mach_vm_address_t MemoryProcessor::GetMainModuleBaseAddress() const {
 
     mach_vm_address_t address;
     mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
-    struct task_dyld_info dyld_info;
+    struct task_dyld_info dyld_info{};
 
     if (task_info(tsk, TASK_DYLD_INFO, (task_info_t)&dyld_info, &count) != KERN_SUCCESS) {
 
@@ -57,8 +55,13 @@ mach_vm_address_t MemoryProcessor::GetMainModuleBaseAddress() const {
     }
 
     address = dyld_info.all_image_info_addr;
-    return address;
-    
+
+    */
+
+    pthread_t self = pthread_self();
+    void* addr = pthread_get_stackaddr_np(self);
+    return reinterpret_cast<mach_vm_address_t>(addr);
+
 }
 
 void MemoryProcessor::patch(mach_vm_address_t address, void* buffer, mach_vm_size_t size) const {
