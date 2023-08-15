@@ -9,7 +9,7 @@ class MemoryProcessor {
 private:
 
     pid_t pid;
-    task_t task;
+    task_t task{};
 
 public:
 
@@ -22,6 +22,6 @@ public:
 
 private:
 
-    pid_t FindPIDByProcessName(const std::string &processName);
+    static pid_t FindPIDByProcessName(const std::string &processName);
     
 };

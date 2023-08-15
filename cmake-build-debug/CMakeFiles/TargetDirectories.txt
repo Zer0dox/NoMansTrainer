@@ -1,0 +1,3 @@
+/Users/zyantos/CLionProjects/NoMansTrainer/cmake-build-debug/CMakeFiles/NoMansTrainer.dir
+/Users/zyantos/CLionProjects/NoMansTrainer/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/zyantos/CLionProjects/NoMansTrainer/cmake-build-debug/CMakeFiles/rebuild_cache.dir
