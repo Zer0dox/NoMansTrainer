@@ -7,23 +7,13 @@
 #include <string>
 
 
-MemoryProcessor::MemoryProcessor(const std::string &processName) {
-
-    pid = FindPIDByProcessName(processName);
-    if (task_for_pid(mach_task_self(), pid, &task) != KERN_SUCCESS) {
-
-        throw std::runtime_error("Error getting task for PID");
-
-    }
-}
-
-kern_return_t MemoryProcessor::WriteToProcessMemory(mach_vm_address_t address, void* value, mach_msg_type_number_t size) const {
+kern_return_t WriteToProcessMemory(mach_vm_address_t address, void* value, mach_msg_type_number_t size) const {
     
     return mach_vm_write(task, address, (vm_offset_t)value, size);
 
 }
 
-uintptr_t MemoryProcessor::FindDynamicAddr(mach_vm_address_t ptr, const std::vector<uintptr_t> &offsets) const {
+uintptr_t FindDynamicAddr(mach_vm_address_t ptr, const std::vector<uintptr_t> &offsets) const {
     
     uintptr_t dynamicAddr = ptr;
     for (uintptr_t offset : offsets) {
@@ -36,7 +26,7 @@ uintptr_t MemoryProcessor::FindDynamicAddr(mach_vm_address_t ptr, const std::vec
 
 }
 
-mach_vm_address_t MemoryProcessor::GetMainModuleBaseAddress() {
+mach_vm_address_t GetMainModuleBaseAddress() {
 
     /*
     task_t tsk;
@@ -64,7 +54,7 @@ mach_vm_address_t MemoryProcessor::GetMainModuleBaseAddress() {
 
 }
 
-void MemoryProcessor::patch(mach_vm_address_t address, void* buffer, mach_vm_size_t size) const {
+void patch(mach_vm_address_t address, void* buffer, mach_vm_size_t size) const {
     
     vm_protect(task, address, size, false, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
     mach_vm_write(task, address, (vm_offset_t)buffer, size);
@@ -72,14 +62,14 @@ void MemoryProcessor::patch(mach_vm_address_t address, void* buffer, mach_vm_siz
 
 }
 
-void MemoryProcessor::nop(mach_vm_address_t address, mach_vm_size_t size) const {
+void nop(mach_vm_address_t address, mach_vm_size_t size) const {
     
     std::vector<uint8_t> nopArray(size, 0x90);
     patch(address, nopArray.data(), size);
 
 }
 
-pid_t MemoryProcessor::FindPIDByProcessName(const std::string &processName) {
+pid_t FindPIDByProcessName(const std::string &processName) {
 
     pid_t pids[1024];
     int numberOfProcesses = proc_listpids(PROC_ALL_PIDS, 0, nullptr, 0);
