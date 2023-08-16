@@ -2,59 +2,72 @@
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 #include <mach-o/loader.h>
+#include <mach-o/dyld.h>
+#include <mach-o/dyld_images.h>
+#include <dlfcn.h>
 #include <libproc.h>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 #include <string>
 
 
-kern_return_t WriteToProcessMemory(mach_vm_address_t address, void* value, mach_msg_type_number_t size) const {
+kern_return_t WriteToProcessMemory(mach_vm_address_t address, void* value, mach_msg_type_number_t size)  {
     
     return mach_vm_write(task, address, (vm_offset_t)value, size);
 
 }
 
-uintptr_t FindDynamicAddr(mach_vm_address_t ptr, const std::vector<uintptr_t> &offsets) const {
-    
+uintptr_t FindDynamicAddr(uintptr_t ptr, const std::vector<unsigned int>& offsets)
+{
     uintptr_t dynamicAddr = ptr;
-    for (uintptr_t offset : offsets) {
+    mach_msg_type_number_t dataCount;
+    kern_return_t kr;
 
-        mach_vm_read(task, dynamicAddr, sizeof(dynamicAddr), &dynamicAddr, nullptr);
+    for(unsigned int offset : offsets)
+    {
+        dataCount = sizeof(dynamicAddr);
+        kr = vm_read_overwrite(task, dynamicAddr, dataCount, (vm_address_t)&dynamicAddr,
+                               reinterpret_cast<vm_size_t *>(&dataCount));
+
+        if (kr != KERN_SUCCESS)
+        {
+            return 0; // Error reading memory
+        }
+
         dynamicAddr += offset;
-
     }
+
     return dynamicAddr;
-
 }
 
-mach_vm_address_t GetMainModuleBaseAddress() {
+uintptr_t GetModuleBaseAddress(pid_t procId)
+{
+    task_for_pid(mach_task_self(), procId, &task);
 
-    /*
-    task_t tsk;
-    if (task_for_pid(mach_task_self(), pid, &tsk) != KERN_SUCCESS) {
-
-        return 0; // Error getting task for PID
-    }
-
-    mach_vm_address_t address;
-    mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
     struct task_dyld_info dyld_info{};
-
-    if (task_info(tsk, TASK_DYLD_INFO, (task_info_t)&dyld_info, &count) != KERN_SUCCESS) {
-
-        return 0; // Error getting task info
+    mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
+    if(task_info(task, TASK_DYLD_INFO, (task_info_t)&dyld_info, &count) != KERN_SUCCESS)
+    {
+        return 0; // Failure
     }
 
-    address = dyld_info.all_image_info_addr;
+    auto* all_image_infos = (struct dyld_all_image_infos*)dyld_info.all_image_info_addr;
+    auto* image_infos = const_cast<dyld_image_info *>(all_image_infos->infoArray);
 
-    */
+    for(int i = 0; i < all_image_infos->infoArrayCount; i++)
+    {
+        const char* image_path = image_infos[i].imageFilePath;
+        if(image_path != nullptr)
+        {
+            return (uintptr_t)image_infos[i].imageLoadAddress;
+        }
+    }
 
-    pthread_t self = pthread_self();
-    void* addr = pthread_get_stackaddr_np(self);
-    return reinterpret_cast<mach_vm_address_t>(addr);
-
+    return 0; // Module not found
 }
 
-void patch(mach_vm_address_t address, void* buffer, mach_vm_size_t size) const {
+void patch(mach_vm_address_t address, void* buffer, mach_vm_size_t size)  {
     
     vm_protect(task, address, size, false, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
     mach_vm_write(task, address, (vm_offset_t)buffer, size);
@@ -62,7 +75,7 @@ void patch(mach_vm_address_t address, void* buffer, mach_vm_size_t size) const {
 
 }
 
-void nop(mach_vm_address_t address, mach_vm_size_t size) const {
+void nop(mach_vm_address_t address, mach_vm_size_t size)  {
     
     std::vector<uint8_t> nopArray(size, 0x90);
     patch(address, nopArray.data(), size);
